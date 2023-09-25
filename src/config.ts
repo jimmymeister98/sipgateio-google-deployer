@@ -151,6 +151,9 @@ export async function selectGoogleCloudProject(config: Config) {
 
   const gcloudSetProject = async (name: string) => {
     await execCommand(`gcloud config set project ${name}`);
+    console.warn(
+        `${COLOR_YELLOW}[WARN] Important: Check if Cloud Build API is enabled for ${name}${COLOR_DEFAULT}`,
+    );
     return name;
   };
 
