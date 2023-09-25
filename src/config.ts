@@ -108,28 +108,35 @@ export async function interactivelyGenerateConfig(): Promise<Config> {
 
   return resultConfig;
 }
-export async function createGoogleCloudProject(projectId: string) {
+
+function generateRandomGcpProjectId(): string {
+  const prefix = 'sipgateio-';
+  const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const projectIdLength = 30 - prefix.length; // Maximal 30 Zeichen insgesamt
+
+  const randomChars = [];
+  for (let i = 0; i < projectIdLength; i += 1) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    randomChars.push(characters[randomIndex]);
+  }
+
+  return prefix + randomChars.join('');
+}
+
+export async function createGoogleCloudProject(name: string) {
   try {
-    await execCommand(`gcloud projects create ${projectId}`);
+    const projectId = generateRandomGcpProjectId();
+    console.log(
+      `Creating new GCP project with the name: ${name} and the project ID: ${projectId}...`,
+    );
+    await execCommand(`gcloud projects create ${projectId} --name="${name}"`);
     return true;
   } catch (error) {
-    console.log(
-      'Could not create GCP project. Please check if the project ID is unique and valid.',
+    console.error(
+      `Could not create GCP project. Please check if the project ID is (globally) unique and valid.`,
     );
     return false;
   }
-}
-
-function validateGcpProjectId(projectId: string): boolean {
-  const projectIdRegex = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
-  const restrictedProjectIds = new Set(['google', 'null', 'undefined', 'ssl']);
-  if (projectId.length < 6 || projectId.length > 30) {
-    return false;
-  }
-  if (!projectIdRegex.test(projectId)) {
-    return false;
-  }
-  return !restrictedProjectIds.has(projectId.toLowerCase());
 }
 
 export async function selectGoogleCloudProject(config: Config) {
@@ -137,7 +144,6 @@ export async function selectGoogleCloudProject(config: Config) {
   const { stdout } = await execCommand(
     `gcloud projects list --format="value(projectId)"`,
   );
-  const projects = stdout.split('\n').filter((name) => name.trim() !== '');
   const projectName = config.GOOGLE_PROJECT_NAME?.trim();
   const isValidProjectName =
     stdout.includes(projectName ?? '') &&
@@ -165,25 +171,23 @@ export async function selectGoogleCloudProject(config: Config) {
       name: 'selectedProject',
       message:
         'Choose a GCP project for this example or enter a new name to generate one:',
-      type: 'input',
+      type: 'autocomplete',
       validate: (input) => {
-        if (!validateGcpProjectId(selectedProject)) {
-          return 'Project ID doesnt adhere to the naming conventions. Please refer to the README for more information.';
-        }
         if (input.trim() === '') return 'Project name cannot be empty';
         return true;
       },
       suggestOnly: true, // For suggestions
-      source: async (input: string) => {
-        const suggestions = projects.filter((project) =>
-          project.toLowerCase().includes(input.toLowerCase()),
-        );
-        return suggestions.length > 0 ? suggestions : [input];
-      },
+      source: (answersSoFor: string[], input: string | undefined) =>
+        stdout
+          .split('\n')
+          .filter(
+            (name) =>
+              name.toLowerCase().includes(input?.toLowerCase() ?? '') &&
+              name !== '',
+          ),
     },
   ]);
   if (!stdout.includes(selectedProject)) {
-    console.log(`Creating new GCP project with ID: ${selectedProject}`);
     const creationSuccess = await createGoogleCloudProject(selectedProject);
     if (!creationSuccess) {
       throw new Error('Failed to create a new GCP project.');
