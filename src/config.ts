@@ -112,7 +112,7 @@ export async function interactivelyGenerateConfig(): Promise<Config> {
 function generateRandomGcpProjectId(): string {
   const prefix = 'sipgateio-';
   const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const projectIdLength = 30 - prefix.length; // Maximal 30 Zeichen insgesamt
+  const projectIdLength = 30 - prefix.length;
 
   const randomChars = [];
   for (let i = 0; i < projectIdLength; i += 1) {
@@ -176,7 +176,7 @@ export async function selectGoogleCloudProject(config: Config) {
         if (input.trim() === '') return 'Project name cannot be empty';
         return true;
       },
-      suggestOnly: true, // For suggestions
+      suggestOnly: true,
       source: (answersSoFor: string[], input: string | undefined) =>
         stdout
           .split('\n')
